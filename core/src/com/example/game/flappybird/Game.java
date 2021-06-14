@@ -43,6 +43,18 @@ public class Game extends ApplicationAdapter {
     private Texture canoTopo;
     //Textura do game over
     private Texture gameOver;
+    //Textura da Logo
+    private Texture logoAngryBirds;
+    private Texture textureMoedaOuro;
+    private Texture textureMoedaPrata;
+
+    private MoedaCoin moedaAtual;
+    private MoedaCoin moedaOuro;
+    private MoedaCoin moedaPrata;
+    private Circle circuloMoeda;
+    private float posicaoMoedaHorizontal;
+    private float posicaoMoedaVertical;
+    private boolean pegouMoeda;
 
     //Variável de Pontos
     private int pontos = 0;
@@ -69,6 +81,7 @@ public class Game extends ApplicationAdapter {
     Sound somVoando;
     Sound somColisao;
     Sound somPontuacao;
+    Sound somMoeda;
 
     Preferences preferencias;
 
@@ -80,6 +93,7 @@ public class Game extends ApplicationAdapter {
         inicializaTextura();
         //Colocar objetos na cena
         inicializaObjeto();
+        criarMoeda();
     }
 
 
@@ -128,29 +142,48 @@ public class Game extends ApplicationAdapter {
         circuloPassaro = new Circle();
         retanguloCanoCima = new Rectangle();
         retanguloCanoBaixo = new Rectangle();
+        circuloMoeda = new Circle();
         //Declarando o audio para cada tipo
         somVoando = Gdx.audio.newSound(Gdx.files.internal("som_asa.wav"));
         somColisao = Gdx.audio.newSound(Gdx.files.internal("som_batida.wav"));
         somPontuacao = Gdx.audio.newSound(Gdx.files.internal("som_pontos.wav"));
+        somMoeda = Gdx.audio.newSound(Gdx.files.internal("CollectCoin.wav"));
 
         //pegando as Preferencias e declarando para cada um
         preferencias = Gdx.app.getPreferences("flappyBird");
         pontuacaoMaxima = preferencias.getInteger("pontuacaoMaxima", 0);
+
     }
+
+    private void criarMoeda()
+    {
+        posicaoMoedaHorizontal= larguraDispositivo;
+        posicaoMoedaVertical = random.nextInt((int) 300)+500;
+
+        textureMoedaOuro = new Texture("moeda.png");
+        moedaOuro = new MoedaCoin(textureMoedaOuro,10);
+
+        textureMoedaPrata = new Texture("moedaPrata.png");
+        moedaPrata = new MoedaCoin(textureMoedaPrata,5);
+
+        moedaAtual = moedaOuro;
+    }
+
 
     private void inicializaTextura()
     {
         passaros = new Texture[3];
         //Array para pegar sprites de animação do passaro
-        passaros[0] = new Texture("passaro1.png");
-        passaros[1] = new Texture("passaro2.png");
-        passaros[2] = new Texture("passaro3.png");
+        passaros[0] = new Texture("red1.png");
+        passaros[1] = new Texture("red2.png");
+        passaros[2] = new Texture("red3.png");
         //Variavel de texturas, do fundo e dos canos, gameoover
         fundo = new Texture("fundo.png");
 
         canoBaixo = new Texture("cano_baixo_maior.png");
         canoTopo = new Texture("cano_topo_maior.png");
-        gameOver = new Texture("game_ober.png");
+        gameOver = new Texture("game_over.png");
+        logoAngryBirds = new Texture("ANGRY-BIRDS-LOGO.png");
     }
 
     private void detectarColisao()
@@ -165,9 +198,12 @@ public class Game extends ApplicationAdapter {
         retanguloCanoCima.set(posicaoCanoHorizontal,
                 alturaDispositivo / 2 + espacoEntreCanos + espacoEntreCanos / 2 + posicaoCanoVertical,
                 canoTopo.getWidth(), canoTopo.getHeight());
+
+        circuloMoeda.set(posicaoMoedaHorizontal*2,posicaoMoedaVertical + moedaAtual.moedaTexture.getHeight()/2,moedaAtual.moedaTexture.getWidth()/3);
         //Boolean para saber se bateu no cano
         boolean bateuCanoCima = Intersector.overlaps(circuloPassaro, retanguloCanoCima);
         boolean bateuCanoBaixo = Intersector.overlaps(circuloPassaro, retanguloCanoBaixo);
+       boolean bateuMoeda = Intersector.overlaps(circuloPassaro,circuloMoeda);
 
         //Bateu no Cano  baixo ou bateu no Cano Cima
         if(bateuCanoBaixo || bateuCanoCima)
@@ -179,6 +215,14 @@ public class Game extends ApplicationAdapter {
                 estadoJogo = 2;
             }
         }
+        //Caso bateu na Moeda, ganhe o pontos dela
+       if(bateuMoeda && estadoJogo ==1 )
+       {
+           pontos+=moedaAtual.pontos;
+           pegouMoeda = true;
+           somMoeda.play();
+       }
+
 
     }
 
@@ -225,11 +269,25 @@ public class Game extends ApplicationAdapter {
                 somVoando.play();
             }
             posicaoCanoHorizontal -= Gdx.graphics.getDeltaTime() * 200;
+            posicaoMoedaHorizontal -= Gdx.graphics.getDeltaTime()*200;
             if(posicaoCanoHorizontal < -canoBaixo.getHeight())
             {
                 posicaoCanoHorizontal = larguraDispositivo;
                 posicaoCanoVertical = random.nextInt(400) - 200;
                 passouCano = false;
+            }
+            if(posicaoMoedaHorizontal < -moedaAtual.moedaTexture.getHeight() || pegouMoeda)
+            {
+                posicaoMoedaHorizontal= larguraDispositivo;
+                posicaoMoedaVertical = random.nextInt((int) 300)+500;
+                int randomMoeda = random.nextInt(5);
+                if(randomMoeda==1){
+                    moedaAtual = moedaOuro;
+                }
+                else{
+                    moedaAtual = moedaPrata;
+                }
+                pegouMoeda = false;
             }
             //Fazendo o pássaro voar com toque de tela
             if (posicaoInicialVerticalPassaro > 0 || toqueTela)
@@ -274,6 +332,12 @@ public class Game extends ApplicationAdapter {
             batch.draw(gameOver, larguraDispositivo / 2 - gameOver.getWidth() / 2, alturaDispositivo / 2);
             textoReiniciar.draw(batch, "TOQUE NA TELA PARA REINICIAR!", larguraDispositivo / 2 - 200, alturaDispositivo / 2 - gameOver.getHeight() / 2);
             textoMelhorPontuacao.draw(batch, "SUA MELHOR PONTUAÇÃO É : " + pontuacaoMaxima +  "PONTOS!", larguraDispositivo / 2 - 300, alturaDispositivo / 2 - gameOver.getHeight() * 2);
+        }else if(estadoJogo==0)
+        {
+            //Desenhar a logo
+            batch.draw(logoAngryBirds,posicaoMoedaHorizontal/2, alturaDispositivo / 2,500,500);
+        }else if(!pegouMoeda){
+            batch.draw(moedaAtual.moedaTexture,posicaoMoedaHorizontal,posicaoMoedaVertical,100,100);
         }
 
         batch.end();
@@ -283,5 +347,6 @@ public class Game extends ApplicationAdapter {
     public void dispose() {
     }
 }
+
 
 
